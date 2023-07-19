@@ -45,4 +45,5 @@ services:
   #    entrypoint:
   #      - POSTGRES_DB=ewm_service_db
   #      - POSTGRES_USER=ewmUser
+
   #      - POSTGRES_PASSWORD=ewmPass
