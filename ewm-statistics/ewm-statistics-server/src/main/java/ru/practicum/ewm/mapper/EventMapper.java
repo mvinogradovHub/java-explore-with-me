@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 @UtilityClass
 public class EventMapper {
-    public static EndpointHit RequestStatDtoToEvent(RequestStatDto statDto) {
+    public static EndpointHit requestStatDtoToEvent(RequestStatDto statDto) {
         return EndpointHit.builder()
                 .app(statDto.getApp())
                 .uri(statDto.getUri())
@@ -28,7 +28,7 @@ public class EventMapper {
                 .build();
     }
 
-    public static List<ResponseStatDto> HitEventListToRequestStatDtoList(List<ViewStats> events) {
+    public static List<ResponseStatDto> hitEventListToRequestStatDtoList(List<ViewStats> events) {
         return events.stream().map(EventMapper::hitEventToRequestStatDto).collect(Collectors.toList());
     }
 

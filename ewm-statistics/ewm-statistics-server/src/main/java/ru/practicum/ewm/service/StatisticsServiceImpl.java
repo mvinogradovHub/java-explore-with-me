@@ -20,15 +20,15 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public EndpointHit addEvent(RequestStatDto dtoRequest) {
-        return eventRepository.save(EventMapper.RequestStatDtoToEvent(dtoRequest));
+        return eventRepository.save(EventMapper.requestStatDtoToEvent(dtoRequest));
     }
 
     @Override
     public List<ResponseStatDto> getEvents(LocalDateTime start, LocalDateTime end, List<String> uris, Boolean unique) {
         if (unique) {
-            return EventMapper.HitEventListToRequestStatDtoList(eventRepository.getUniqueEvents(start, end, uris));
+            return EventMapper.hitEventListToRequestStatDtoList(eventRepository.getUniqueEvents(start, end, uris));
         } else {
-            return EventMapper.HitEventListToRequestStatDtoList(eventRepository.getEvents(start, end, uris));
+            return EventMapper.hitEventListToRequestStatDtoList(eventRepository.getEvents(start, end, uris));
         }
     }
 }
