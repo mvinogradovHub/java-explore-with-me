@@ -1,15 +1,48 @@
 version: '3.1'
 services:
   stats-server:
+    build: ./ewm-statistics/ewm-statistics-server
+    image: ewm-statistics-server-img
+    container_name: ewm-statistics-server
+    depends_on:
+      - stats-db
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://stats-db:5432/ewm_statistics_db
+      - SPRING_DATASOURCE_USERNAME=statisticsUser
+      - SPRING_DATASOURCE_PASSWORD=statisticsPass
     ports:
       - "9090:9090"
 
   stats-db:
     image: postgres:14-alpine
+    container_name: statistics-db
+    ports:
+      - "6451:5432"
+    environment:
+      - POSTGRES_DB=ewm_statistics_db
+      - POSTGRES_USER=statisticsUser
+      - POSTGRES_PASSWORD=statisticsPass
 
   ewm-service:
+    build: ./ewm-service
+    image: ewm-service-img
+    container_name: ewm-service
     ports:
       - "8080:8080"
+  #    depends_on:
+  #      - ewm-db
+  #      - stats-server
+  #    entrypoint:
+  #      - SPRING_DATASOURCE_URL=jdbc:postgresql://ewm-db:5432/ewm_service_db
 
-  ewm-db:
-    image: postgres:14-alpine
+  #  ewm-db:
+  #    image: postgres:14-alpine
+  #    container_name: ewm_db
+  #    volumes:
+  #      - /var/lib/postgresql/data/
+  #    ports:
+  #      - "6451:5432"
+  #    entrypoint:
+  #      - POSTGRES_DB=ewm_service_db
+  #      - POSTGRES_USER=ewmUser
+  #      - POSTGRES_PASSWORD=ewmPass
