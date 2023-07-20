@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import ru.practicum.ewm.dto.RequestStatDto;
 import ru.practicum.ewm.dto.ResponseStatDto;
 import ru.practicum.ewm.mapper.EventMapper;
-import ru.practicum.ewm.model.EndpointHit;
+import ru.practicum.ewm.model.Event;
 import ru.practicum.ewm.repository.EventRepository;
 
 import java.time.LocalDateTime;
@@ -19,7 +19,7 @@ public class StatisticsServiceImpl implements StatisticsService {
     private final EventRepository eventRepository;
 
     @Override
-    public EndpointHit addEvent(RequestStatDto dtoRequest) {
+    public Event addEvent(RequestStatDto dtoRequest) {
         return eventRepository.save(EventMapper.requestStatDtoToEvent(dtoRequest));
     }
 
