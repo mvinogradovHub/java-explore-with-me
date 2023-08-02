@@ -38,7 +38,7 @@ public class ErrorHandler {
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.CONFLICT)
-    public ApiError handleSQLError(final ConflictException e) {
+    public ApiError handleConflictError(final ConflictException e) {
         return ApiError.builder()
                 .timestamp(LocalDateTime.now())
                 .message(e.getMessage())

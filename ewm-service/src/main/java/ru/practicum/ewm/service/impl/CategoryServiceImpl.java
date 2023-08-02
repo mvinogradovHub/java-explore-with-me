@@ -16,6 +16,7 @@ import ru.practicum.ewm.service.CategoryService;
 import ru.practicum.ewm.utils.PageUtils;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -28,14 +29,24 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     public CategoryDto addCategory(Category category) {
-        return categoryMapper.categoryToCategoryDto(categoryRepository.save(category));
+        if (categoryRepository.findByName(category.getName()).isEmpty()) {
+            return categoryMapper.categoryToCategoryDto(categoryRepository.save(category));
+        } else {
+            throw new ConflictException("The name Category " + category.getName() + " already exist");
+        }
     }
 
     @Override
     public CategoryDto editCategory(Long catId, Category category) {
         categoryRepository.findById(catId).orElseThrow(() -> new NotFoundException("Category with id=" + catId + " was not found"));
         category.setId(catId);
-        return categoryMapper.categoryToCategoryDto(categoryRepository.save(category));
+        Optional<Category> categoryOptional = categoryRepository.findByName(category.getName());
+        if (categoryOptional.isEmpty() || (categoryOptional.get().equals(category))) {
+            return categoryMapper.categoryToCategoryDto(categoryRepository.save(category));
+        } else {
+            throw new ConflictException("The Category with name" + category.getName() + " already exist");
+        }
+
     }
 
     @Override
