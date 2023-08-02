@@ -1,4 +1,4 @@
-package ru.practicum.ewm.model;
+package ru.practicum.ewm.exception;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
@@ -13,10 +13,10 @@ import java.util.List;
 @ToString
 @NoArgsConstructor
 public class ApiError {
-    List<Exception> errors;
-    String message;
-    String reason;
-    String status;
+    private List<Exception> errors;
+    private String message;
+    private String reason;
+    private String status;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-    LocalDateTime timestamp;
+    private LocalDateTime timestamp;
 }

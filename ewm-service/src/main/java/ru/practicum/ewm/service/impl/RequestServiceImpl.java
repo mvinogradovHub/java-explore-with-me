@@ -32,7 +32,7 @@ public class RequestServiceImpl implements RequestService {
 
 
     @Override
-    public RequestDto addUserRequest(Long userId, Long eventId) {
+    public RequestDto addRequestByUser(Long userId, Long eventId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
@@ -67,14 +67,14 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
-    public List<RequestDto> getUserRequests(Long userId) {
+    public List<RequestDto> getRequestsByUser(Long userId) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         List<Request> requests = requestRepository.findByRequesterId(userId);
         return requests.stream().map(requestMapper::requestToRequestDto).collect(Collectors.toList());
     }
 
     @Override
-    public RequestDto cancelUserRequests(Long userId, Long requestId) {
+    public RequestDto cancelRequestByUser(Long userId, Long requestId) {
         Request request = requestRepository.findByRequesterIdAndId(userId, requestId).orElseThrow(() -> new NotFoundException("Request with id=" + requestId + " was not found"));
         Event event = eventRepository.findById(request.getEvent().getId()).orElseThrow(() -> new NotFoundException("Event with id=" + request.getEvent().getId() + " was not found"));
         request.setStatus(RequestStatus.CANCELED);
@@ -84,13 +84,13 @@ public class RequestServiceImpl implements RequestService {
     }
 
     @Override
-    public List<RequestDto> getUserEventRequests(Long userId, Long eventId) {
+    public List<RequestDto> getRequestByUserEvent(Long userId, Long eventId) {
         List<Request> requests = requestRepository.findByEventInitiatorIdAndEventId(userId, eventId);
         return requests.stream().map(requestMapper::requestToRequestDto).collect(Collectors.toList());
     }
 
     @Override
-    public RequestStatusUpdateResultDto requestsStatusChange(Long userId, Long eventId, RequestStatusUpdateDto updateDto) {
+    public RequestStatusUpdateResultDto ChangeStatusRequestsByUser(Long userId, Long eventId, RequestStatusUpdateDto updateDto) {
 
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 

@@ -16,14 +16,14 @@ import java.util.List;
 public class CompilationDto {
 
     @NotNull
-    Long id;
+    private Long id;
 
     @NotNull
-    Boolean pinned;
+    private Boolean pinned;
 
     @NotBlank
     @Size(min = 1, max = 50)
-    String title;
+    private String title;
 
-    List<EventShortDto> events;
+    private List<EventShortDto> events;
 }

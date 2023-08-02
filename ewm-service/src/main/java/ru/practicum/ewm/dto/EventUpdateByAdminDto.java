@@ -2,6 +2,7 @@ package ru.practicum.ewm.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
+import ru.practicum.ewm.model.EventStateAdminAction;
 import ru.practicum.ewm.model.Location;
 
 import javax.validation.constraints.Future;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @ToString
 @NoArgsConstructor
-public class EventUpdateDto<T> {
+public class EventUpdateByAdminDto {
 
     @Size(min = 3, max = 120)
     private String title;
@@ -35,7 +36,7 @@ public class EventUpdateDto<T> {
 
     private Boolean requestModeration;
 
-    private T stateAction;
+    private EventStateAdminAction stateAction;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     @Future

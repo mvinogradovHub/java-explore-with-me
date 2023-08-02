@@ -15,7 +15,10 @@ import ru.practicum.ewm.exception.ParameterRequestException;
 import ru.practicum.ewm.exception.ValidationException;
 import ru.practicum.ewm.mapper.EventMapper;
 import ru.practicum.ewm.model.*;
-import ru.practicum.ewm.repository.*;
+import ru.practicum.ewm.repository.CategoryRepository;
+import ru.practicum.ewm.repository.EventRepository;
+import ru.practicum.ewm.repository.LocationRepository;
+import ru.practicum.ewm.repository.UserRepository;
 import ru.practicum.ewm.service.EventService;
 import ru.practicum.ewm.utils.PageUtils;
 
@@ -40,7 +43,7 @@ public class EventServiceImpl implements EventService {
     private final StatsClient statsClient;
 
     @Override
-    public EventFullDto addUserEvent(Long userId, EventNewDto eventNewDto) {
+    public EventFullDto addEventByUser(Long userId, EventNewDto eventNewDto) {
         Event event = eventMapper.eventNewDtoToEvent(eventNewDto);
 
         if (event.getEventDate().isBefore(LocalDateTime.now().plusHours(2L))) {
@@ -78,7 +81,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullDto getUserEvent(Long userId, Long eventId) {
+    public EventFullDto getEventByUser(Long userId, Long eventId) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
         addViews(List.of(event));
@@ -86,7 +89,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<EventShortDto> getUserEvents(Long userId, Integer from, Integer size) {
+    public List<EventShortDto> getEventsByUser(Long userId, Integer from, Integer size) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         List<Event> events = eventRepository.findByInitiatorId(userId, PageUtils.convertToPageSettings(from, size));
         addViews(events);
@@ -95,7 +98,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullDto updateUserEvent(Long userId, Long eventId, EventUpdateDto<EventStateUserAction> updateDto) {
+    public EventFullDto updateEventByUser(Long userId, Long eventId, EventUpdateByUserDto updateDto) {
 
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
@@ -124,19 +127,55 @@ public class EventServiceImpl implements EventService {
                     throw new ValidationException("Invalid state action");
             }
         }
-        updateEvent(event, updateDto);
+        if (updateDto.getAnnotation() != null) {
+            event.setAnnotation(updateDto.getAnnotation());
+        }
+
+        if (updateDto.getCategory() != null) {
+            Category category = categoryRepository.findById(updateDto.getCategory()).orElseThrow(() -> new NotFoundException("Category with id=" + updateDto.getCategory() + " was not found"));
+            event.setCategory(category);
+        }
+
+        if (updateDto.getDescription() != null) {
+            event.setDescription(updateDto.getDescription());
+        }
+
+        if (updateDto.getLocation() != null) {
+            Optional<Location> location = locationRepository.findByLatAndLon(updateDto.getLocation().getLat(), updateDto.getLocation().getLon());
+            if (location.isEmpty()) {
+                location = Optional.of(locationRepository.save(updateDto.getLocation()));
+            }
+            event.setLocation(location.get());
+        }
+
+        if (updateDto.getPaid() != null) {
+            event.setPaid(updateDto.getPaid());
+        }
+
+        if (updateDto.getParticipantLimit() != null) {
+            event.setParticipantLimit(updateDto.getParticipantLimit());
+        }
+
+        if (updateDto.getRequestModeration() != null) {
+            event.setRequestModeration(updateDto.getRequestModeration());
+        }
+
+
+        if (updateDto.getTitle() != null) {
+            event.setTitle(updateDto.getTitle());
+        }
 
         return eventMapper.eventToEventFullDto(eventRepository.save(event));
 
     }
 
     @Override
-    public List<EventFullDto> getAdminEvents(List<Long> users,
-                                             List<EventState> states,
-                                             List<Long> categories,
-                                             LocalDateTime rangeStart,
-                                             LocalDateTime rangeEnd,
-                                             Integer from, Integer size) {
+    public List<EventFullDto> getEventsByAdmin(List<Long> users,
+                                               List<EventState> states,
+                                               List<Long> categories,
+                                               LocalDateTime rangeStart,
+                                               LocalDateTime rangeEnd,
+                                               Integer from, Integer size) {
         BooleanExpression resultExpression = Expressions.asBoolean(true).isTrue();
 
         if (users != null) {
@@ -166,7 +205,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullDto updateAdminEvent(Long eventId, EventUpdateDto<EventStateAdminAction> updateDto) {
+    public EventFullDto updateEventByAdmin(Long eventId, EventUpdateByAdminDto updateDto) {
 
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
@@ -196,14 +235,6 @@ public class EventServiceImpl implements EventService {
         if (event.getPublishedOn() != null && event.getEventDate().isBefore(event.getPublishedOn().plusHours(1))) {
             throw new ValidationException("the start date of the event to be modified must be no earlier than an hour from the date of publication.");
         }
-
-        updateEvent(event, updateDto);
-
-        return eventMapper.eventToEventFullDto(eventRepository.save(event));
-
-    }
-
-    private <T> void updateEvent(Event event, EventUpdateDto<T> updateDto) {
 
         if (updateDto.getAnnotation() != null) {
             event.setAnnotation(updateDto.getAnnotation());
@@ -243,62 +274,56 @@ public class EventServiceImpl implements EventService {
             event.setTitle(updateDto.getTitle());
         }
 
+        return eventMapper.eventToEventFullDto(eventRepository.save(event));
+
     }
 
-    @Override
-    public List<EventShortDto> getEvents(String text,
-                                         List<Long> categories,
-                                         Boolean paid,
-                                         LocalDateTime rangeStart,
-                                         LocalDateTime rangeEnd,
-                                         Boolean onlyAvailable,
-                                         EventSort sort,
-                                         Integer from,
-                                         Integer size,
-                                         HttpServletRequest request) {
 
-        if (rangeEnd.isBefore(rangeStart)) {
+    @Override
+    public List<EventShortDto> getEvents(EventSearchRequestDto param) {
+
+        if (param.getRangeEnd().isBefore(param.getRangeStart())) {
             throw new ParameterRequestException("Bad rangeEnd");
         }
 
         statsClient.hit(RequestStatDto.builder()
                 .timestamp(LocalDateTime.now())
                 .app("ewm-service")
-                .uri(request.getRequestURI())
-                .ip(request.getRemoteAddr())
+                .uri(param.getRequest().getRequestURI())
+                .ip(param.getRequest().getRemoteAddr())
                 .build());
 
         BooleanExpression resultExpression = Expressions.asBoolean(true).isTrue();
 
-        if (text != null) {
-            resultExpression = QEvent.event.annotation.likeIgnoreCase(text).or(QEvent.event.description.likeIgnoreCase(text));
+        if (param.getText() != null) {
+            resultExpression = QEvent.event.annotation.likeIgnoreCase(param.getText()).or(QEvent.event.description.likeIgnoreCase(param.getText()));
 
         }
-        if (paid != null && paid) {
+        if (param.getPaid() != null && param.getPaid()) {
             resultExpression = resultExpression.and(QEvent.event.paid.isTrue());
-        } else if (paid != null) {
+        } else if (param.getPaid() != null) {
             resultExpression = resultExpression.and(QEvent.event.paid.isFalse());
         }
 
-        if (rangeStart != null) {
-            resultExpression = resultExpression.and(QEvent.event.eventDate.after(rangeStart));
+        if (param.getRangeStart() != null) {
+            resultExpression = resultExpression.and(QEvent.event.eventDate.after(param.getRangeStart()));
         }
 
-        if (rangeEnd != null) {
-            resultExpression = resultExpression.and(QEvent.event.eventDate.before(rangeEnd));
+        if (param.getRangeEnd() != null) {
+            resultExpression = resultExpression.and(QEvent.event.eventDate.before(param.getRangeEnd()));
         }
-        if (onlyAvailable) {
+        if (param.getOnlyAvailable()) {
             resultExpression = resultExpression.and(QEvent.event.participantLimit.ne(QEvent.event.confirmedRequests));
         }
 
         Pageable pageable;
 
-        switch (sort) {
+        switch (param.getSort()) {
             case EVENT_DATE:
-                pageable = PageUtils.convertToPageSettings(from, size, "eventDate");
+                pageable = PageUtils.convertToPageSettings(param.getFrom(), param.getSize(), "eventDate");
                 break;
             case VIEWS:
-                pageable = PageUtils.convertToPageSettings(from, size, "views");
+                pageable = PageUtils.convertToPageSettings(param.getFrom(), param.getSize(), "views");
                 break;
             default:
                 throw new ValidationException("Invalid state action");

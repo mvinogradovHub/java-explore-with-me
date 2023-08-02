@@ -5,9 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.ewm.dto.EventFullDto;
-import ru.practicum.ewm.dto.EventUpdateDto;
+import ru.practicum.ewm.dto.EventUpdateByAdminDto;
 import ru.practicum.ewm.model.EventState;
-import ru.practicum.ewm.model.EventStateAdminAction;
 import ru.practicum.ewm.service.EventService;
 
 import javax.validation.Valid;
@@ -31,13 +30,13 @@ public class EventAdminController {
                                            @RequestParam(defaultValue = "0") Integer from,
                                            @RequestParam(defaultValue = "10") Integer size) {
         log.info("Received request to GET /admin/events?users={}states={}&categories={}&rangeStart={}&rangeEnd={}&from={}&size={}", users, states, categories, rangeStart, rangeEnd, from, size);
-        return eventService.getAdminEvents(users, states, categories, rangeStart, rangeEnd, from, size);
+        return eventService.getEventsByAdmin(users, states, categories, rangeStart, rangeEnd, from, size);
     }
 
 
     @PatchMapping("/{eventId}")
-    public EventFullDto updateEvent(@PathVariable Long eventId, @RequestBody @Valid EventUpdateDto<EventStateAdminAction> event) {
+    public EventFullDto updateEvent(@PathVariable Long eventId, @RequestBody @Valid EventUpdateByAdminDto event) {
         log.info("Received request to PATCH /admin/events/{} with body: {}", eventId, event);
-        return eventService.updateAdminEvent(eventId, event);
+        return eventService.updateEventByAdmin(eventId, event);
     }
 }

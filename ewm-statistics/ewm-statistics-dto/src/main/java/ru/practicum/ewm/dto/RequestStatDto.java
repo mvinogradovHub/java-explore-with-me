@@ -13,16 +13,16 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RequestStatDto {
-    Long id;
+    private Long id;
     @NotBlank
-    String app;
+    private String app;
     @NotBlank
-    String uri;
+    private String uri;
     @NotBlank
-    String ip;
+    private String ip;
     @NotNull
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
-    LocalDateTime timestamp;
+    private LocalDateTime timestamp;
 
     @Override
     public String toString() {

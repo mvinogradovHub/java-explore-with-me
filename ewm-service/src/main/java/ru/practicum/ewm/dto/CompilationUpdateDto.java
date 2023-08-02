@@ -13,10 +13,10 @@ import java.util.List;
 @NoArgsConstructor
 public class CompilationUpdateDto {
 
-    Boolean pinned;
+    private Boolean pinned;
 
     @Size(min = 1, max = 50)
-    String title;
+    private String title;
 
-    List<Long> events;
+    private List<Long> events;
 }

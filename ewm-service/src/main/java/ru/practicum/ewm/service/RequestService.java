@@ -7,15 +7,15 @@ import ru.practicum.ewm.dto.RequestStatusUpdateResultDto;
 import java.util.List;
 
 public interface RequestService {
-    RequestDto addUserRequest(Long userId, Long eventId);
+    RequestDto addRequestByUser(Long userId, Long eventId);
 
-    List<RequestDto> getUserRequests(Long userId);
+    List<RequestDto> getRequestsByUser(Long userId);
 
-    RequestDto cancelUserRequests(Long userId, Long requestId);
+    RequestDto cancelRequestByUser(Long userId, Long requestId);
 
-    List<RequestDto> getUserEventRequests(Long userId, Long eventId);
+    List<RequestDto> getRequestByUserEvent(Long userId, Long eventId);
 
-    RequestStatusUpdateResultDto requestsStatusChange(Long userId, Long eventId, RequestStatusUpdateDto updateDto);
+    RequestStatusUpdateResultDto ChangeStatusRequestsByUser(Long userId, Long eventId, RequestStatusUpdateDto updateDto);
 
 
 }

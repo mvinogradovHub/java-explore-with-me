@@ -21,20 +21,20 @@ public class RequestPrivateController {
     @ResponseStatus(HttpStatus.CREATED)
     public RequestDto addRequest(@PathVariable Long userId, @RequestParam Long eventId) {
         log.info("Received request to POST /users/{}/requests?eventId={}", userId, eventId);
-        return requestService.addUserRequest(userId, eventId);
+        return requestService.addRequestByUser(userId, eventId);
     }
 
 
     @GetMapping
     public List<RequestDto> getEvents(@PathVariable Long userId) {
         log.info("Received request to GET /users/{}/requests", userId);
-        return requestService.getUserRequests(userId);
+        return requestService.getRequestsByUser(userId);
     }
 
 
     @PatchMapping("/{requestId}/cancel")
     public RequestDto cancelUserRequests(@PathVariable Long userId, @PathVariable Long requestId) {
         log.info("Received request to PATCH GET /users/{}/requests/{}/cancel", userId, requestId);
-        return requestService.cancelUserRequests(userId, requestId);
+        return requestService.cancelRequestByUser(userId, requestId);
     }
 }

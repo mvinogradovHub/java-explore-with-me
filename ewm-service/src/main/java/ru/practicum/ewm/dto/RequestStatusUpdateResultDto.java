@@ -11,6 +11,6 @@ import java.util.List;
 @ToString
 @NoArgsConstructor
 public class RequestStatusUpdateResultDto {
-    List<RequestDto> confirmedRequests;
-    List<RequestDto> rejectedRequests;
+    private List<RequestDto> confirmedRequests;
+    private List<RequestDto> rejectedRequests;
 }
