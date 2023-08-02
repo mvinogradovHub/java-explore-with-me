@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.practicum.ewm.dto.RequestStatDto;
 import ru.practicum.ewm.dto.ResponseStatDto;
+import ru.practicum.ewm.exception.ParameterRequestException;
 import ru.practicum.ewm.mapper.EventMapper;
 import ru.practicum.ewm.model.Event;
 import ru.practicum.ewm.repository.EventRepository;
@@ -25,6 +26,9 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public List<ResponseStatDto> getEvents(LocalDateTime start, LocalDateTime end, List<String> uris, Boolean unique) {
+        if (end.isBefore(start)) {
+            throw new ParameterRequestException("the end date must be later than the start date");
+        }
         if (unique) {
             return EventMapper.hitEventListToRequestStatDtoList(eventRepository.getUniqueEvents(start, end, uris));
         } else {
