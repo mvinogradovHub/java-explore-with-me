@@ -15,10 +15,7 @@ import ru.practicum.ewm.exception.ParameterRequestException;
 import ru.practicum.ewm.exception.ValidationException;
 import ru.practicum.ewm.mapper.EventMapper;
 import ru.practicum.ewm.model.*;
-import ru.practicum.ewm.repository.CategoryRepository;
-import ru.practicum.ewm.repository.EventRepository;
-import ru.practicum.ewm.repository.LocationRepository;
-import ru.practicum.ewm.repository.UserRepository;
+import ru.practicum.ewm.repository.*;
 import ru.practicum.ewm.service.EventService;
 import ru.practicum.ewm.utils.PageUtils;
 
@@ -41,6 +38,7 @@ public class EventServiceImpl implements EventService {
     private final CategoryRepository categoryRepository;
     private final LocationRepository locationRepository;
     private final StatsClient statsClient;
+    private final CommentRepository commentRepository;
 
     @Override
     public EventFullDto addEventByUser(Long userId, EventNewDto eventNewDto) {
@@ -81,11 +79,11 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullDto getEventByUser(Long userId, Long eventId) {
+    public EventFullPrivateDto getEventByUser(Long userId, Long eventId) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
         addViews(List.of(event));
-        return eventMapper.eventToEventFullDto(event);
+        return eventMapper.eventToEventFullPrivateDto(event);
     }
 
     @Override
@@ -98,7 +96,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullDto updateEventByUser(Long userId, Long eventId, EventUpdateByUserDto updateDto) {
+    public EventFullPrivateDto updateEventByUser(Long userId, Long eventId, EventUpdateByUserDto updateDto) {
 
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
@@ -165,17 +163,17 @@ public class EventServiceImpl implements EventService {
             event.setTitle(updateDto.getTitle());
         }
 
-        return eventMapper.eventToEventFullDto(eventRepository.save(event));
+        return eventMapper.eventToEventFullPrivateDto(eventRepository.save(event));
 
     }
 
     @Override
-    public List<EventFullDto> getEventsByAdmin(List<Long> users,
-                                               List<EventState> states,
-                                               List<Long> categories,
-                                               LocalDateTime rangeStart,
-                                               LocalDateTime rangeEnd,
-                                               Integer from, Integer size) {
+    public List<EventFullPrivateDto> getEventsByAdmin(List<Long> users,
+                                                      List<EventState> states,
+                                                      List<Long> categories,
+                                                      LocalDateTime rangeStart,
+                                                      LocalDateTime rangeEnd,
+                                                      Integer from, Integer size) {
         BooleanExpression resultExpression = Expressions.asBoolean(true).isTrue();
 
         if (users != null) {
@@ -201,11 +199,11 @@ public class EventServiceImpl implements EventService {
         Page<Event> eventsPage = eventRepository.findAll(resultExpression, PageUtils.convertToPageSettings(from, size));
         List<Event> events = eventsPage.stream().collect(Collectors.toList());
         addViews(events);
-        return events.stream().map(eventMapper::eventToEventFullDto).collect(Collectors.toList());
+        return events.stream().map(eventMapper::eventToEventFullPrivateDto).collect(Collectors.toList());
     }
 
     @Override
-    public EventFullDto updateEventByAdmin(Long eventId, EventUpdateByAdminDto updateDto) {
+    public EventFullPrivateDto updateEventByAdmin(Long eventId, EventUpdateByAdminDto updateDto) {
 
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
@@ -216,6 +214,9 @@ public class EventServiceImpl implements EventService {
                     if (event.getState().equals(EventState.PENDING)) {
                         event.setState(EventState.PUBLISHED);
                         event.setPublishedOn(LocalDateTime.now());
+                        if (updateDto.getCommentOnRejection() != null) {
+                            throw new ValidationException("Comment can only be added if the request is rejected");
+                        }
                     } else {
                         throw new ValidationException("Invalid state action");
                     }
@@ -223,6 +224,17 @@ public class EventServiceImpl implements EventService {
                 case REJECT_EVENT:
                     if (!event.getState().equals(EventState.PUBLISHED)) {
                         event.setState(EventState.CANCELED);
+
+                        if (updateDto.getCommentOnRejection() != null) {
+                            Comment comment = Comment.builder()
+                                    .text(updateDto.getCommentOnRejection())
+                                    .event(event)
+                                    .created(LocalDateTime.now())
+                                    .updated(LocalDateTime.now())
+                                    .build();
+                            commentRepository.save(comment);
+                        }
+
                     } else {
                         throw new ValidationException("Invalid state action");
                     }
@@ -274,7 +286,7 @@ public class EventServiceImpl implements EventService {
             event.setTitle(updateDto.getTitle());
         }
 
-        return eventMapper.eventToEventFullDto(eventRepository.save(event));
+        return eventMapper.eventToEventFullPrivateDto(eventRepository.save(event));
 
     }
 

@@ -34,13 +34,13 @@ public class EventPrivateController {
     }
 
     @GetMapping("/{eventId}")
-    public EventFullDto getEvent(@PathVariable Long userId, @PathVariable Long eventId) {
+    public EventFullPrivateDto getEvent(@PathVariable Long userId, @PathVariable Long eventId) {
         log.info("Received request to GET /users/{}/events/{}", userId, eventId);
         return eventService.getEventByUser(userId, eventId);
     }
 
     @PatchMapping("/{eventId}")
-    public EventFullDto updateEvent(@PathVariable Long userId, @PathVariable Long eventId, @RequestBody @Valid EventUpdateByUserDto event) {
+    public EventFullPrivateDto updateEvent(@PathVariable Long userId, @PathVariable Long eventId, @RequestBody @Valid EventUpdateByUserDto event) {
         log.info("Received request to PATCH /users/{}/events/{} with body: {}", eventId, userId, event);
         return eventService.updateEventByUser(userId, eventId, event);
     }
@@ -56,4 +56,6 @@ public class EventPrivateController {
         log.info("Received request to PATCH /users/{}/events/{}/requests with body: {}", eventId, userId, updateDto);
         return requestService.changeStatusRequestsByUser(userId, eventId, updateDto);
     }
+
+
 }
