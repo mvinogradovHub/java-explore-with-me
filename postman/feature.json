@@ -97,6 +97,92 @@
 					"response": []
 				},
 				{
+					"name": "Попытка получить событие в ожидании модерации через публичный контроллер",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 400 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.notFound;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/events/:eId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								":eId"
+							],
+							"variable": [
+								{
+									"key": "eId",
+									"value": "{{eid}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка получить событие в ожидании модерации через публичный контроллер поиска событий",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 200 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.ok;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									"const target = pm.response.json();\r",
+									"\r",
+									"const event = pm.variables.get('eid');\r",
+									"\r",
+									"let findevent = target.filter(function (value) {\r",
+									"    return value.id == event;\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Событие не должно быть найдено\", function () {\r",
+									"pm.expect(findevent).empty;\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/events",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Попытка администратора отклонить с пустым комментарием",
 					"event": [
 						{
@@ -142,14 +228,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/admin/events/:eventId",
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"admin",
 								"events",
-								":eventId"
+								":eventId",
+								"moderation"
 							],
 							"variable": [
 								{
@@ -209,14 +296,81 @@
 							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/admin/events/:eventId",
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"admin",
 								"events",
-								":eventId"
+								":eventId",
+								"moderation"
+							],
+							"variable": [
+								{
+									"key": "eventId",
+									"value": "{{eid}}"
+								}
+							]
+						},
+						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка отклонить администратором без взятия в работу на модерацию",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 409 и данные в формате json\", function () {\r",
+									"    pm.response.to.have.status(409);\r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"stateAction\" : \"REJECT_EVENT\",\r\n    \"commentOnRejection\": \"Все очень плохо, такое публиковать нельзя\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"events",
+								":eventId",
+								"moderation"
 							],
 							"variable": [
 								{
@@ -231,7 +385,386 @@
 					"response": []
 				},
 				{
-					"name": "Отклонение  с комментарием события администратором",
+					"name": "Попытка опубликовать без модерации администратором",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 409 и данные в формате json\", function () {\r",
+									"    pm.response.to.have.status(409);\r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"stateAction\" : \"PUBLISH_EVENT\",\r\n    \"commentOnRejection\": \"Какой-то коммент\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"events",
+								":eventId",
+								"moderation"
+							],
+							"variable": [
+								{
+									"key": "eventId",
+									"value": "{{eid}}",
+									"description": "(Required) id события"
+								}
+							]
+						},
+						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
+					"name": "Взятие в работу на модерацию администратором",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 200 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.ok;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									"const target = pm.response.json();\r",
+									"\r",
+									"pm.test(\"Событие должно содержать поле comments\", function () {\r",
+									"pm.expect(target).to.have.property('comments');\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Событие должно иметь статус MODERATION\", function () {\r",
+									" pm.expect(target.state).equal(\"MODERATION\");\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Текст комментария в запросе должен соответсовать тексту в ответе\", function () {\r",
+									"    pm.expect(\"В работе\").equal(target.comments[0].text);\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"stateAction\" : \"IN_WORK_EVENT\",\r\n    \"commentOnRejection\": \"В работе\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"events",
+								":eventId",
+								"moderation"
+							],
+							"variable": [
+								{
+									"key": "eventId",
+									"value": "{{eid}}",
+									"description": "(Required) id события"
+								}
+							]
+						},
+						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка получить событие на модерации через публичный контроллер",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 400 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.notFound;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/events/:eId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								":eId"
+							],
+							"variable": [
+								{
+									"key": "eId",
+									"value": "{{eid}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка получить событие на модерации через публичный контроллер поиска событий",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 200 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.ok;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									"const target = pm.response.json();\r",
+									"\r",
+									"const event = pm.variables.get('eid');\r",
+									"\r",
+									"const findevent = target.filter(function (value) {\r",
+									"    return value.id == event;\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Событие не должно быть найдено\", function () {\r",
+									"pm.expect(findevent).empty;\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/events?category={{categoryId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events"
+							],
+							"query": [
+								{
+									"key": "category",
+									"value": "{{categoryId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка пользователя изменить событие на модерации",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 409 и данные в формате json\", function () {\r",
+									"    pm.response.to.have.status(409);\r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\": \"New title\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/:userId/events/:eventId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								":userId",
+								"events",
+								":eventId"
+							],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "{{userId}}"
+								},
+								{
+									"key": "eventId",
+									"value": "{{eid}}"
+								}
+							]
+						},
+						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка пользователя изменить статус события на модерации",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 409 и данные в формате json\", function () {\r",
+									"    pm.response.to.have.status(409);\r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"stateAction\" : \"SEND_TO_REVIEW\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/:userId/events/:eventId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								":userId",
+								"events",
+								":eventId"
+							],
+							"variable": [
+								{
+									"key": "userId",
+									"value": "{{userId}}"
+								},
+								{
+									"key": "eventId",
+									"value": "{{eid}}"
+								}
+							]
+						},
+						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
+					"name": "Отклонение события администратором",
 					"event": [
 						{
 							"listen": "prerequest",
@@ -263,7 +796,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"Текст комментария в запросе должен соответсовать тексту в ответе\", function () {\r",
-									"    pm.expect(\"Все очень плохо, такое публиковать нельзя\").equal(target.comments[0].text);\r",
+									"    pm.expect(\"Отклонено\").equal(target.comments[1].text);\r",
 									"});"
 								],
 								"type": "text/javascript"
@@ -280,7 +813,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"stateAction\" : \"REJECT_EVENT\",\r\n    \"commentOnRejection\": \"Все очень плохо, такое публиковать нельзя\"\r\n}",
+							"raw": "{\r\n    \"stateAction\" : \"REJECT_EVENT\",\r\n    \"commentOnRejection\": \"Отклонено\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -288,14 +821,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/admin/events/:eventId",
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"admin",
 								"events",
-								":eventId"
+								":eventId",
+								"moderation"
 							],
 							"variable": [
 								{
@@ -306,6 +840,100 @@
 							]
 						},
 						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка получить отклоненное событие через публичный контроллер",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 400 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.notFound;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/events/:eId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events",
+								":eId"
+							],
+							"variable": [
+								{
+									"key": "eId",
+									"value": "{{eid}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Попытка получить отклоненное событие через публичный контроллер поиска событий",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 200 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.ok;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									"const target = pm.response.json();\r",
+									"\r",
+									"const event = pm.variables.get('eid');\r",
+									"\r",
+									"const findevent = target.filter(function (value) {\r",
+									"    return value.id == event;\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Событие не должно быть найдено\", function () {\r",
+									"pm.expect(findevent).empty;\r",
+									"});\r",
+									"\r",
+									"\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/events?category={{categoryId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"events"
+							],
+							"query": [
+								{
+									"key": "category",
+									"value": "{{categoryId}}"
+								}
+							]
+						}
 					},
 					"response": []
 				},
@@ -418,71 +1046,6 @@
 					"response": []
 				},
 				{
-					"name": "Попытка администратора оставить комментарий при публикации события",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									""
-								],
-								"type": "text/javascript"
-							}
-						},
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Ответ должен содержать код статуса 409 и данные в формате json\", function () {\r",
-									"    pm.response.to.have.status(409);\r",
-									"    pm.response.to.be.withBody;\r",
-									"    pm.response.to.be.json;\r",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "PATCH",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"stateAction\" : \"PUBLISH_EVENT\",\r\n    \"commentOnRejection\": \"Все очень плохо, такое публиковать нельзя\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/admin/events/:eventId",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"admin",
-								"events",
-								":eventId"
-							],
-							"variable": [
-								{
-									"key": "eventId",
-									"value": "{{eid}}",
-									"description": "(Required) id события"
-								}
-							]
-						},
-						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
-					},
-					"response": []
-				},
-				{
 					"name": "Отправка пользователем события на повторную модерацию",
 					"event": [
 						{
@@ -562,7 +1125,88 @@
 					"response": []
 				},
 				{
-					"name": "Повторное отклонение с комментарием события Администратором",
+					"name": "Повторное взятие в работу на модерацию администратором",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 200 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.ok;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									"const target = pm.response.json();\r",
+									"\r",
+									"pm.test(\"Событие должно содержать поле comments\", function () {\r",
+									"pm.expect(target).to.have.property('comments');\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Событие должно иметь статус MODERATION\", function () {\r",
+									" pm.expect(target.state).equal(\"MODERATION\");\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Текст комментария в запросе должен соответсовать тексту в ответе\", function () {\r",
+									"    pm.expect(\"Опять в работе\").equal(target.comments[2].text);\r",
+									"    pm.expect(\"Отклонено\").equal(target.comments[1].text);\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"stateAction\" : \"IN_WORK_EVENT\",\r\n    \"commentOnRejection\": \"Опять в работе\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"events",
+								":eventId",
+								"moderation"
+							],
+							"variable": [
+								{
+									"key": "eventId",
+									"value": "{{eid}}",
+									"description": "(Required) id события"
+								}
+							]
+						},
+						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
+					"name": "Повторное отклонение события администратором",
 					"event": [
 						{
 							"listen": "prerequest",
@@ -594,8 +1238,7 @@
 									"});\r",
 									"\r",
 									"pm.test(\"Текст комментария в запросе должен соответсовать тексту в ответе\", function () {\r",
-									"    pm.expect(\"Все очень плохо, такое публиковать нельзя\").equal(target.comments[0].text);\r",
-									"    pm.expect(\"Опять все очень плохо, такое публиковать нельзя\").equal(target.comments[1].text);\r",
+									"    pm.expect(\"Опять отклонено\").equal(target.comments[3].text);\r",
 									"});"
 								],
 								"type": "text/javascript"
@@ -612,7 +1255,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"stateAction\" : \"REJECT_EVENT\",\r\n    \"commentOnRejection\": \"Опять все очень плохо, такое публиковать нельзя\"\r\n}",
+							"raw": "{\r\n    \"stateAction\" : \"REJECT_EVENT\",\r\n    \"commentOnRejection\": \"Опять отклонено\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -620,14 +1263,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/admin/events/:eventId",
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"admin",
 								"events",
-								":eventId"
+								":eventId",
+								"moderation"
 							],
 							"variable": [
 								{
@@ -924,6 +1568,83 @@
 					"response": []
 				},
 				{
+					"name": "Повторное взятие в работу на модерацию администратором",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Ответ должен содержать код статуса 200 и данные в формате json\", function () {\r",
+									"    pm.response.to.be.ok;    \r",
+									"    pm.response.to.be.withBody;\r",
+									"    pm.response.to.be.json;\r",
+									"});\r",
+									"\r",
+									"const target = pm.response.json();\r",
+									"\r",
+									"pm.test(\"Событие должно содержать поле comments\", function () {\r",
+									"pm.expect(target).to.have.property('comments');\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Событие должно иметь статус MODERATION\", function () {\r",
+									" pm.expect(target.state).equal(\"MODERATION\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"stateAction\" : \"IN_WORK_EVENT\",\r\n    \"commentOnRejection\": \"Опять в работе\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"events",
+								":eventId",
+								"moderation"
+							],
+							"variable": [
+								{
+									"key": "eventId",
+									"value": "{{eid}}",
+									"description": "(Required) id события"
+								}
+							]
+						},
+						"description": "Обратите внимание:\n - дата начала события должна быть не ранее чем за час от даты публикации.\n- событие должно быть в состоянии ожидания публикации"
+					},
+					"response": []
+				},
+				{
 					"name": "Публикация события Администратором",
 					"event": [
 						{
@@ -978,14 +1699,15 @@
 							}
 						},
 						"url": {
-							"raw": "{{baseUrl}}/admin/events/:eventId",
+							"raw": "{{baseUrl}}/admin/events/:eventId/moderation",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"admin",
 								"events",
-								":eventId"
+								":eventId",
+								"moderation"
 							],
 							"variable": [
 								{
@@ -1059,13 +1781,22 @@
 									"});\r",
 									"\r",
 									"const target = pm.response.json();\r",
+									"\r",
+									"const event = pm.variables.get('eid');\r",
+									"\r",
+									"const findevent = target.filter(function (value) {\r",
+									"    return value.id == event;\r",
+									"});\r",
+									"\r",
 									"pm.test(\"Событие должно быть найдено\", function () {\r",
-									"pm.expect(target[0].id).equal(pm.collectionVariables.get('eid'));\r",
+									"pm.expect(findevent).not.empty;\r",
 									"});\r",
 									"\r",
 									"pm.test(\"Событие не должно содержать поле comments\", function () {\r",
-									"pm.expect(target[0]).to.not.have.property('comments');\r",
+									"pm.expect(findevent).to.not.have.property('comments');\r",
 									"});\r",
+									"\r",
+									"\r",
 									""
 								],
 								"type": "text/javascript"
