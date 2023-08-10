@@ -40,4 +40,12 @@ public class CommentServiceImpl implements CommentService {
         return commentMapper.commentToCommentDto(commentRepository.save(commentInRepo));
     }
 
+    public CommentDto addCommentByAdmin(Long eventId, Comment comment) {
+        Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+        comment.setEvent(event);
+        comment.setUpdated(LocalDateTime.now());
+        comment.setCreated(LocalDateTime.now());
+        return commentMapper.commentToCommentDto(commentRepository.save(comment));
+    }
+
 }

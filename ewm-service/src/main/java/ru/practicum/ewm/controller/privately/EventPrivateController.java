@@ -30,19 +30,19 @@ public class EventPrivateController {
     @GetMapping
     public List<EventShortDto> getEvents(@PathVariable Long userId, @RequestParam(defaultValue = "0") Integer from, @RequestParam(defaultValue = "10") Integer size) {
         log.info("Received request to GET /users/{}/events?from={}&size={}", userId, from, size);
-        return eventService.getEventsByUser(userId, from, size);
+        return eventService.getUserHisEvents(userId, from, size);
     }
 
     @GetMapping("/{eventId}")
     public EventFullPrivateDto getEvent(@PathVariable Long userId, @PathVariable Long eventId) {
         log.info("Received request to GET /users/{}/events/{}", userId, eventId);
-        return eventService.getEventByUser(userId, eventId);
+        return eventService.getUserHisEvent(userId, eventId);
     }
 
     @PatchMapping("/{eventId}")
     public EventFullPrivateDto updateEvent(@PathVariable Long userId, @PathVariable Long eventId, @RequestBody @Valid EventUpdateByUserDto event) {
         log.info("Received request to PATCH /users/{}/events/{} with body: {}", eventId, userId, event);
-        return eventService.updateEventByUser(userId, eventId, event);
+        return eventService.updateUserHisEvent(userId, eventId, event);
     }
 
     @GetMapping("/{eventId}/requests")

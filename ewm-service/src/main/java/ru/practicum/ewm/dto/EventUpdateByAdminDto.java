@@ -42,7 +42,5 @@ public class EventUpdateByAdminDto {
     @Future
     private LocalDateTime eventDate;
 
-    @Size(min = 1, max = 1000)
-    private String commentOnRejection;
 
 }

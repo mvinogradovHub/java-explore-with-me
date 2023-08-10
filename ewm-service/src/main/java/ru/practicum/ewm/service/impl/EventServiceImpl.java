@@ -79,7 +79,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullPrivateDto getEventByUser(Long userId, Long eventId) {
+    public EventFullPrivateDto getUserHisEvent(Long userId, Long eventId) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
         addViews(List.of(event));
@@ -87,7 +87,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<EventShortDto> getEventsByUser(Long userId, Integer from, Integer size) {
+    public List<EventShortDto> getUserHisEvents(Long userId, Integer from, Integer size) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         List<Event> events = eventRepository.findByInitiatorId(userId, PageUtils.convertToPageSettings(from, size));
         addViews(events);
@@ -96,7 +96,7 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullPrivateDto updateEventByUser(Long userId, Long eventId, EventUpdateByUserDto updateDto) {
+    public EventFullPrivateDto updateUserHisEvent(Long userId, Long eventId, EventUpdateByUserDto updateDto) {
 
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
 
@@ -116,7 +116,11 @@ public class EventServiceImpl implements EventService {
         if (updateDto.getStateAction() != null) {
             switch (updateDto.getStateAction()) {
                 case SEND_TO_REVIEW:
-                    event.setState(EventState.PENDING);
+                    if (event.getState().equals(EventState.CANCELED)) {
+                        event.setState(EventState.PENDING);
+                    } else {
+                        throw new ValidationException("you can only resend an event with the CANCELED status to the review");
+                    }
                     break;
                 case CANCEL_REVIEW:
                     event.setState(EventState.CANCELED);
@@ -124,7 +128,16 @@ public class EventServiceImpl implements EventService {
                 default:
                     throw new ValidationException("Invalid state action");
             }
+        } else {
+            switch (event.getState()) {
+                case PUBLISHED:
+                    event.setState(EventState.PENDING);
+                    break;
+                case MODERATION:
+                    throw new ValidationException("You cannot edit events during moderation");
+            }
         }
+
         if (updateDto.getAnnotation() != null) {
             event.setAnnotation(updateDto.getAnnotation());
         }
@@ -211,12 +224,9 @@ public class EventServiceImpl implements EventService {
         if (updateDto.getStateAction() != null) {
             switch (updateDto.getStateAction()) {
                 case PUBLISH_EVENT:
-                    if (event.getState().equals(EventState.PENDING)) {
+                    if (event.getState().equals(EventState.PENDING) || event.getState().equals(EventState.MODERATION)) {
                         event.setState(EventState.PUBLISHED);
                         event.setPublishedOn(LocalDateTime.now());
-                        if (updateDto.getCommentOnRejection() != null) {
-                            throw new ValidationException("Comment can only be added if the request is rejected");
-                        }
                     } else {
                         throw new ValidationException("Invalid state action");
                     }
@@ -224,17 +234,6 @@ public class EventServiceImpl implements EventService {
                 case REJECT_EVENT:
                     if (!event.getState().equals(EventState.PUBLISHED)) {
                         event.setState(EventState.CANCELED);
-
-                        if (updateDto.getCommentOnRejection() != null) {
-                            Comment comment = Comment.builder()
-                                    .text(updateDto.getCommentOnRejection())
-                                    .event(event)
-                                    .created(LocalDateTime.now())
-                                    .updated(LocalDateTime.now())
-                                    .build();
-                            commentRepository.save(comment);
-                        }
-
                     } else {
                         throw new ValidationException("Invalid state action");
                     }
@@ -305,12 +304,18 @@ public class EventServiceImpl implements EventService {
                 .ip(param.getRequest().getRemoteAddr())
                 .build());
 
-        BooleanExpression resultExpression = Expressions.asBoolean(true).isTrue();
+        BooleanExpression resultExpression = QEvent.event.state.eq(EventState.PUBLISHED);
+
 
         if (param.getText() != null) {
-            resultExpression = QEvent.event.annotation.likeIgnoreCase(param.getText()).or(QEvent.event.description.likeIgnoreCase(param.getText()));
+            resultExpression = resultExpression.and(QEvent.event.annotation.likeIgnoreCase(param.getText()).or(QEvent.event.description.likeIgnoreCase(param.getText())));
 
         }
+
+        if (param.getCategories() != null) {
+            resultExpression = resultExpression.and(QEvent.event.category.id.in(param.getCategories()));
+        }
+
         if (param.getPaid() != null && param.getPaid()) {
             resultExpression = resultExpression.and(QEvent.event.paid.isTrue());
         } else if (param.getPaid() != null) {
@@ -363,6 +368,51 @@ public class EventServiceImpl implements EventService {
 
         return eventMapper.eventToEventFullDto(event);
     }
+
+    public EventFullPrivateDto changeModerationStatusByAdmin(Long eventId, EventModerationByAdminDto moderation) {
+        Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+        EventStateAdminAction stateAdminAction = moderation.getStateAction();
+        EventState eventState = event.getState();
+
+        switch (stateAdminAction) {
+            case IN_WORK_EVENT:
+                if (eventState.equals(EventState.PENDING)) {
+                    event.setState(EventState.MODERATION);
+                } else {
+                    throw new ValidationException("only events that are in the PENDING status can be moderated");
+                }
+                break;
+            case PUBLISH_EVENT:
+                if (eventState.equals(EventState.MODERATION)) {
+                    event.setState(EventState.PUBLISHED);
+                } else {
+                    throw new ValidationException("only events that have passed MODERATION can be published");
+                }
+                break;
+            case REJECT_EVENT:
+                if (eventState.equals(EventState.MODERATION)) {
+                    event.setState(EventState.CANCELED);
+                } else {
+                    throw new ValidationException("only events that have passed moderation can be canceled");
+                }
+                break;
+            default:
+                throw new ValidationException("Invalid state action");
+        }
+
+        if (moderation.getCommentOnRejection() != null) {
+            Comment comment = Comment.builder()
+                    .text(moderation.getCommentOnRejection())
+                    .event(event)
+                    .created(LocalDateTime.now())
+                    .updated(LocalDateTime.now())
+                    .build();
+            commentRepository.save(comment);
+        }
+
+        return eventMapper.eventToEventFullPrivateDto(eventRepository.save(event));
+    }
+
 
     private void addViews(List<Event> events) {
         List<String> uris = events.stream().map(x -> "/events/" + x.getId()).collect(Collectors.toList());

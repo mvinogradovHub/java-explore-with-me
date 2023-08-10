@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.ewm.dto.CommentDto;
 import ru.practicum.ewm.dto.EventFullPrivateDto;
+import ru.practicum.ewm.dto.EventModerationByAdminDto;
 import ru.practicum.ewm.dto.EventUpdateByAdminDto;
 import ru.practicum.ewm.model.Comment;
 import ru.practicum.ewm.model.EventState;
@@ -56,6 +57,12 @@ public class EventAdminController {
     public void deleteComment(@PathVariable Long eventId, @PathVariable Long commentId) {
         log.info("Received request to DELETE /admin/events/{}/comments/{}", eventId, commentId);
         commentService.deleteCommentByAdmin(commentId, eventId);
+    }
+
+    @PatchMapping("/{eventId}/moderation")
+    public EventFullPrivateDto moderationEvent(@PathVariable Long eventId, @RequestBody @Valid EventModerationByAdminDto moderation) {
+        log.info("Received request to PATCH /admin/events/{}/moderation with body: {}", eventId, moderation);
+        return eventService.changeModerationStatusByAdmin(eventId, moderation);
     }
 
 }

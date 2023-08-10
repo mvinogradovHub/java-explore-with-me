@@ -10,11 +10,11 @@ import java.util.List;
 public interface EventService {
     EventFullDto addEventByUser(Long userId, EventNewDto event);
 
-    EventFullPrivateDto getEventByUser(Long userId, Long eventId);
+    EventFullPrivateDto getUserHisEvent(Long userId, Long eventId);
 
-    List<EventShortDto> getEventsByUser(Long userId, Integer from, Integer size);
+    List<EventShortDto> getUserHisEvents(Long userId, Integer from, Integer size);
 
-    EventFullPrivateDto updateEventByUser(Long userId, Long eventId, EventUpdateByUserDto updateDto);
+    EventFullPrivateDto updateUserHisEvent(Long userId, Long eventId, EventUpdateByUserDto updateDto);
 
     List<EventFullPrivateDto> getEventsByAdmin(List<Long> users,
                                                List<EventState> states,
@@ -29,5 +29,8 @@ public interface EventService {
     List<EventShortDto> getEvents(EventSearchRequestDto dto);
 
     EventFullDto getEvent(Long eventId, HttpServletRequest request);
+
+    EventFullPrivateDto changeModerationStatusByAdmin(Long eventId, EventModerationByAdminDto statusByAdminDto);
+
 
 }
