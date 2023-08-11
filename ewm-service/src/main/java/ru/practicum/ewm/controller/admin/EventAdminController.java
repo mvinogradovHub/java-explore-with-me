@@ -5,10 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.ewm.dto.CommentDto;
-import ru.practicum.ewm.dto.EventFullPrivateDto;
-import ru.practicum.ewm.dto.EventModerationByAdminDto;
-import ru.practicum.ewm.dto.EventUpdateByAdminDto;
+import ru.practicum.ewm.dto.*;
 import ru.practicum.ewm.model.Comment;
 import ru.practicum.ewm.model.EventState;
 import ru.practicum.ewm.service.CommentService;
@@ -36,7 +33,15 @@ public class EventAdminController {
                                                   @RequestParam(defaultValue = "0") Integer from,
                                                   @RequestParam(defaultValue = "10") Integer size) {
         log.info("Received request to GET /admin/events?users={}states={}&categories={}&rangeStart={}&rangeEnd={}&from={}&size={}", users, states, categories, rangeStart, rangeEnd, from, size);
-        return eventService.getEventsByAdmin(users, states, categories, rangeStart, rangeEnd, from, size);
+        return eventService.getEventsByAdmin(EventSearchAdminRequestDto.builder()
+                .users(users)
+                .states(states)
+                .categories(categories)
+                .rangeStart(rangeStart)
+                .rangeEnd(rangeEnd)
+                .from(from)
+                .size(size)
+                .build());
     }
 
 
