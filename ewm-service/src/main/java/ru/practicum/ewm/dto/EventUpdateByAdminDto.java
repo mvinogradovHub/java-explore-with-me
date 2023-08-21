@@ -42,4 +42,5 @@ public class EventUpdateByAdminDto {
     @Future
     private LocalDateTime eventDate;
 
+
 }

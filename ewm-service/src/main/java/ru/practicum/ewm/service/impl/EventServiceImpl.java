@@ -15,10 +15,7 @@ import ru.practicum.ewm.exception.ParameterRequestException;
 import ru.practicum.ewm.exception.ValidationException;
 import ru.practicum.ewm.mapper.EventMapper;
 import ru.practicum.ewm.model.*;
-import ru.practicum.ewm.repository.CategoryRepository;
-import ru.practicum.ewm.repository.EventRepository;
-import ru.practicum.ewm.repository.LocationRepository;
-import ru.practicum.ewm.repository.UserRepository;
+import ru.practicum.ewm.repository.*;
 import ru.practicum.ewm.service.EventService;
 import ru.practicum.ewm.utils.PageUtils;
 
@@ -41,6 +38,7 @@ public class EventServiceImpl implements EventService {
     private final CategoryRepository categoryRepository;
     private final LocationRepository locationRepository;
     private final StatsClient statsClient;
+    private final CommentRepository commentRepository;
 
     @Override
     public EventFullDto addEventByUser(Long userId, EventNewDto eventNewDto) {
@@ -81,206 +79,59 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public EventFullDto getEventByUser(Long userId, Long eventId) {
+    public EventFullPrivateDto getUserHisEvent(Long userId, Long eventId) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
         addViews(List.of(event));
-        return eventMapper.eventToEventFullDto(event);
+
+        return eventMapper.eventToEventFullPrivateDto(event);
     }
 
     @Override
-    public List<EventShortDto> getEventsByUser(Long userId, Integer from, Integer size) {
+    public List<EventShortDto> getUserHisEvents(Long userId, Integer from, Integer size) {
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
         List<Event> events = eventRepository.findByInitiatorId(userId, PageUtils.convertToPageSettings(from, size));
         addViews(events);
+
         return events.stream().map(eventMapper::eventToEventShotDto).collect(Collectors.toList());
 
     }
 
     @Override
-    public EventFullDto updateEventByUser(Long userId, Long eventId, EventUpdateByUserDto updateDto) {
-
+    public EventFullPrivateDto updateUserHisEvent(Long userId, Long eventId, EventUpdateByUserDto updateDto) {
         Event event = eventRepository.findByInitiatorIdAndId(userId, eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
-
         userRepository.findById(userId).orElseThrow(() -> new NotFoundException("User with id=" + userId + " was not found"));
+        checkingAndSetEventStatusForUser(event, updateDto);
+        updateEventForUser(event, updateDto);
 
-        if (event.getState().equals(EventState.PUBLISHED)) {
-            throw new ValidationException("you can only change canceled events or events in the state of waiting for moderation");
-        }
-
-        if (updateDto.getEventDate() != null) {
-            if (updateDto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
-                throw new ValidationException("the date and time for which the event is scheduled cannot be earlier than two hours from the current moment");
-            }
-            event.setEventDate(updateDto.getEventDate());
-        }
-
-        if (updateDto.getStateAction() != null) {
-            switch (updateDto.getStateAction()) {
-                case SEND_TO_REVIEW:
-                    event.setState(EventState.PENDING);
-                    break;
-                case CANCEL_REVIEW:
-                    event.setState(EventState.CANCELED);
-                    break;
-                default:
-                    throw new ValidationException("Invalid state action");
-            }
-        }
-        if (updateDto.getAnnotation() != null) {
-            event.setAnnotation(updateDto.getAnnotation());
-        }
-
-        if (updateDto.getCategory() != null) {
-            Category category = categoryRepository.findById(updateDto.getCategory()).orElseThrow(() -> new NotFoundException("Category with id=" + updateDto.getCategory() + " was not found"));
-            event.setCategory(category);
-        }
-
-        if (updateDto.getDescription() != null) {
-            event.setDescription(updateDto.getDescription());
-        }
-
-        if (updateDto.getLocation() != null) {
-            Optional<Location> location = locationRepository.findByLatAndLon(updateDto.getLocation().getLat(), updateDto.getLocation().getLon());
-            if (location.isEmpty()) {
-                location = Optional.of(locationRepository.save(updateDto.getLocation()));
-            }
-            event.setLocation(location.get());
-        }
-
-        if (updateDto.getPaid() != null) {
-            event.setPaid(updateDto.getPaid());
-        }
-
-        if (updateDto.getParticipantLimit() != null) {
-            event.setParticipantLimit(updateDto.getParticipantLimit());
-        }
-
-        if (updateDto.getRequestModeration() != null) {
-            event.setRequestModeration(updateDto.getRequestModeration());
-        }
-
-
-        if (updateDto.getTitle() != null) {
-            event.setTitle(updateDto.getTitle());
-        }
-
-        return eventMapper.eventToEventFullDto(eventRepository.save(event));
+        return eventMapper.eventToEventFullPrivateDto(eventRepository.save(event));
 
     }
 
+
     @Override
-    public List<EventFullDto> getEventsByAdmin(List<Long> users,
-                                               List<EventState> states,
-                                               List<Long> categories,
-                                               LocalDateTime rangeStart,
-                                               LocalDateTime rangeEnd,
-                                               Integer from, Integer size) {
-        BooleanExpression resultExpression = Expressions.asBoolean(true).isTrue();
-
-        if (users != null) {
-            resultExpression = QEvent.event.initiator.id.in(users);
-        }
-
-        if (states != null) {
-            resultExpression = resultExpression.and(QEvent.event.state.in(states));
-        }
-
-        if (categories != null) {
-            resultExpression = resultExpression.and(QEvent.event.category.id.in(categories));
-        }
-
-        if (rangeStart != null) {
-            resultExpression = resultExpression.and(QEvent.event.eventDate.after(rangeStart));
-        }
-
-        if (rangeEnd != null) {
-            resultExpression = resultExpression.and(QEvent.event.eventDate.before(rangeEnd));
-        }
-
-        Page<Event> eventsPage = eventRepository.findAll(resultExpression, PageUtils.convertToPageSettings(from, size));
+    public List<EventFullPrivateDto> getEventsByAdmin(EventSearchAdminRequestDto param) {
+        Page<Event> eventsPage = eventRepository.findAll(addSearchAdminConditions(param), PageUtils.convertToPageSettings(param.getFrom(), param.getSize()));
         List<Event> events = eventsPage.stream().collect(Collectors.toList());
         addViews(events);
-        return events.stream().map(eventMapper::eventToEventFullDto).collect(Collectors.toList());
+
+        return events.stream().map(eventMapper::eventToEventFullPrivateDto).collect(Collectors.toList());
     }
 
-    @Override
-    public EventFullDto updateEventByAdmin(Long eventId, EventUpdateByAdminDto updateDto) {
 
+    @Override
+    public EventFullPrivateDto updateEventByAdmin(Long eventId, EventUpdateByAdminDto updateDto) {
         Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+        validateEventDateForAdmin(event);
+        checkingAndSetEventStatusForAdmin(event, updateDto.getStateAction(), false);
+        updateEventForAdmin(event, updateDto);
 
-
-        if (updateDto.getStateAction() != null) {
-            switch (updateDto.getStateAction()) {
-                case PUBLISH_EVENT:
-                    if (event.getState().equals(EventState.PENDING)) {
-                        event.setState(EventState.PUBLISHED);
-                        event.setPublishedOn(LocalDateTime.now());
-                    } else {
-                        throw new ValidationException("Invalid state action");
-                    }
-                    break;
-                case REJECT_EVENT:
-                    if (!event.getState().equals(EventState.PUBLISHED)) {
-                        event.setState(EventState.CANCELED);
-                    } else {
-                        throw new ValidationException("Invalid state action");
-                    }
-                    break;
-                default:
-                    throw new ValidationException("Invalid state action");
-            }
-        }
-
-        if (event.getPublishedOn() != null && event.getEventDate().isBefore(event.getPublishedOn().plusHours(1))) {
-            throw new ValidationException("the start date of the event to be modified must be no earlier than an hour from the date of publication.");
-        }
-
-        if (updateDto.getAnnotation() != null) {
-            event.setAnnotation(updateDto.getAnnotation());
-        }
-
-        if (updateDto.getCategory() != null) {
-            Category category = categoryRepository.findById(updateDto.getCategory()).orElseThrow(() -> new NotFoundException("Category with id=" + updateDto.getCategory() + " was not found"));
-            event.setCategory(category);
-        }
-
-        if (updateDto.getDescription() != null) {
-            event.setDescription(updateDto.getDescription());
-        }
-
-        if (updateDto.getLocation() != null) {
-            Optional<Location> location = locationRepository.findByLatAndLon(updateDto.getLocation().getLat(), updateDto.getLocation().getLon());
-            if (location.isEmpty()) {
-                location = Optional.of(locationRepository.save(updateDto.getLocation()));
-            }
-            event.setLocation(location.get());
-        }
-
-        if (updateDto.getPaid() != null) {
-            event.setPaid(updateDto.getPaid());
-        }
-
-        if (updateDto.getParticipantLimit() != null) {
-            event.setParticipantLimit(updateDto.getParticipantLimit());
-        }
-
-        if (updateDto.getRequestModeration() != null) {
-            event.setRequestModeration(updateDto.getRequestModeration());
-        }
-
-
-        if (updateDto.getTitle() != null) {
-            event.setTitle(updateDto.getTitle());
-        }
-
-        return eventMapper.eventToEventFullDto(eventRepository.save(event));
-
+        return eventMapper.eventToEventFullPrivateDto(eventRepository.save(event));
     }
 
 
     @Override
-    public List<EventShortDto> getEvents(EventSearchRequestDto param) {
+    public List<EventShortDto> getEvents(EventSearchPublicRequestDto param) {
 
         if (param.getRangeEnd().isBefore(param.getRangeStart())) {
             throw new ParameterRequestException("Bad rangeEnd");
@@ -293,47 +144,16 @@ public class EventServiceImpl implements EventService {
                 .ip(param.getRequest().getRemoteAddr())
                 .build());
 
-        BooleanExpression resultExpression = Expressions.asBoolean(true).isTrue();
+        addSearchPublicConditions(param);
 
-        if (param.getText() != null) {
-            resultExpression = QEvent.event.annotation.likeIgnoreCase(param.getText()).or(QEvent.event.description.likeIgnoreCase(param.getText()));
-
-        }
-        if (param.getPaid() != null && param.getPaid()) {
-            resultExpression = resultExpression.and(QEvent.event.paid.isTrue());
-        } else if (param.getPaid() != null) {
-            resultExpression = resultExpression.and(QEvent.event.paid.isFalse());
-        }
-
-        if (param.getRangeStart() != null) {
-            resultExpression = resultExpression.and(QEvent.event.eventDate.after(param.getRangeStart()));
-        }
-
-        if (param.getRangeEnd() != null) {
-            resultExpression = resultExpression.and(QEvent.event.eventDate.before(param.getRangeEnd()));
-        }
-        if (param.getOnlyAvailable()) {
-            resultExpression = resultExpression.and(QEvent.event.participantLimit.ne(QEvent.event.confirmedRequests));
-        }
-
-        Pageable pageable;
-
-        switch (param.getSort()) {
-            case EVENT_DATE:
-                pageable = PageUtils.convertToPageSettings(param.getFrom(), param.getSize(), "eventDate");
-                break;
-            case VIEWS:
-                pageable = PageUtils.convertToPageSettings(param.getFrom(), param.getSize(), "views");
-                break;
-            default:
-                throw new ValidationException("Invalid state action");
-        }
-        Page<Event> eventsSort = eventRepository.findAll(resultExpression, pageable);
+        Page<Event> eventsSort = eventRepository.findAll(addSearchPublicConditions(param), getPublicSorted(param));
         List<Event> events = eventsSort.stream().collect(Collectors.toList());
         addViews(events);
+
         return events.stream().map(eventMapper::eventToEventShotDto).collect(Collectors.toList());
 
     }
+
 
     @Override
     public EventFullDto getEvent(Long eventId, HttpServletRequest request) {
@@ -351,6 +171,25 @@ public class EventServiceImpl implements EventService {
 
         return eventMapper.eventToEventFullDto(event);
     }
+
+    public EventFullPrivateDto changeModerationStatusByAdmin(Long eventId, EventModerationByAdminDto moderation) {
+        Event event = eventRepository.findById(eventId).orElseThrow(() -> new NotFoundException("Event with id=" + eventId + " was not found"));
+        EventStateAdminAction stateAdminAction = moderation.getStateAction();
+        checkingAndSetEventStatusForAdmin(event, stateAdminAction, true);
+
+        if (moderation.getCommentOnRejection() != null) {
+            Comment comment = Comment.builder()
+                    .text(moderation.getCommentOnRejection())
+                    .event(event)
+                    .created(LocalDateTime.now())
+                    .updated(LocalDateTime.now())
+                    .build();
+            commentRepository.save(comment);
+        }
+
+        return eventMapper.eventToEventFullPrivateDto(eventRepository.save(event));
+    }
+
 
     private void addViews(List<Event> events) {
         List<String> uris = events.stream().map(x -> "/events/" + x.getId()).collect(Collectors.toList());
@@ -376,6 +215,241 @@ public class EventServiceImpl implements EventService {
         } else {
             return -1L;
         }
+    }
+
+    private void updateEventForUser(Event event, EventUpdateByUserDto updateDto) {
+        if (updateDto.getAnnotation() != null) {
+            event.setAnnotation(updateDto.getAnnotation());
+        }
+
+        if (updateDto.getCategory() != null) {
+            Category category = categoryRepository.findById(updateDto.getCategory()).orElseThrow(() -> new NotFoundException("Category with id=" + updateDto.getCategory() + " was not found"));
+            event.setCategory(category);
+        }
+
+        if (updateDto.getDescription() != null) {
+            event.setDescription(updateDto.getDescription());
+        }
+
+        if (updateDto.getLocation() != null) {
+            Optional<Location> location = locationRepository.findByLatAndLon(updateDto.getLocation().getLat(), updateDto.getLocation().getLon());
+            if (location.isEmpty()) {
+                location = Optional.of(locationRepository.save(updateDto.getLocation()));
+            }
+            event.setLocation(location.get());
+        }
+
+        if (updateDto.getPaid() != null) {
+            event.setPaid(updateDto.getPaid());
+        }
+
+        if (updateDto.getParticipantLimit() != null) {
+            event.setParticipantLimit(updateDto.getParticipantLimit());
+        }
+
+        if (updateDto.getRequestModeration() != null) {
+            event.setRequestModeration(updateDto.getRequestModeration());
+        }
+
+        if (updateDto.getTitle() != null) {
+            event.setTitle(updateDto.getTitle());
+        }
+
+        if (updateDto.getEventDate() != null) {
+            validateEventDateForUser(updateDto);
+            event.setEventDate(updateDto.getEventDate());
+        }
+    }
+
+    private void validateEventDateForUser(EventUpdateByUserDto updateDto) {
+        if (updateDto.getEventDate().isBefore(LocalDateTime.now().plusHours(2))) {
+            throw new ValidationException("the date and time for which the event is scheduled cannot be earlier than two hours from the current moment");
+        }
+
+    }
+
+
+    private void checkingAndSetEventStatusForUser(Event event, EventUpdateByUserDto updateDto) {
+        if (updateDto.getStateAction() != null) {
+            switch (updateDto.getStateAction()) {
+                case SEND_TO_REVIEW:
+                    if (event.getState().equals(EventState.CANCELED)) {
+                        event.setState(EventState.PENDING);
+                    } else {
+                        throw new ValidationException("you can only resend an event with the CANCELED status to the review");
+                    }
+                    break;
+                case CANCEL_REVIEW:
+                    event.setState(EventState.CANCELED);
+                    break;
+                default:
+                    throw new ValidationException("Invalid state action");
+            }
+        } else {
+            switch (event.getState()) {
+                case PUBLISHED:
+                    throw new ValidationException("you can only change canceled events or events in the state of waiting for moderation");
+                case MODERATION:
+                    throw new ValidationException("You cannot edit events during moderation");
+            }
+        }
+    }
+
+
+    private BooleanExpression addSearchAdminConditions(EventSearchAdminRequestDto param) {
+        BooleanExpression resultExpression = Expressions.asBoolean(true).isTrue();
+
+        if (param.getUsers() != null) {
+            resultExpression = QEvent.event.initiator.id.in(param.getUsers());
+        }
+
+        if (param.getStates() != null) {
+            resultExpression = resultExpression.and(QEvent.event.state.in(param.getStates()));
+        }
+
+        if (param.getCategories() != null) {
+            resultExpression = resultExpression.and(QEvent.event.category.id.in(param.getCategories()));
+        }
+
+        if (param.getRangeStart() != null) {
+            resultExpression = resultExpression.and(QEvent.event.eventDate.after(param.getRangeStart()));
+        }
+
+        if (param.getRangeEnd() != null) {
+            resultExpression = resultExpression.and(QEvent.event.eventDate.before(param.getRangeEnd()));
+        }
+
+        return resultExpression;
+    }
+
+    private void validateEventDateForAdmin(Event event) {
+        if (event.getPublishedOn() != null && event.getEventDate().isBefore(event.getPublishedOn().plusHours(1))) {
+            throw new ValidationException("the start date of the event to be modified must be no earlier than an hour from the date of publication.");
+        }
+
+    }
+
+    private void checkingAndSetEventStatusForAdmin(Event event, EventStateAdminAction stateAction, Boolean newModerationMethod) {
+        if (stateAction != null) {
+            switch (stateAction) {
+                case IN_WORK_EVENT:
+                    if (event.getState().equals(EventState.PENDING)) {
+                        event.setState(EventState.MODERATION);
+                    } else {
+                        throw new ValidationException("only events that are in the PENDING status can be moderated");
+                    }
+                    break;
+                case PUBLISH_EVENT:
+                    if (event.getState().equals(EventState.PENDING) && !newModerationMethod) {
+                        event.setState(EventState.PUBLISHED);
+                        event.setPublishedOn(LocalDateTime.now());
+                    } else if (event.getState().equals(EventState.MODERATION) && newModerationMethod) {
+                        event.setState(EventState.PUBLISHED);
+                        event.setPublishedOn(LocalDateTime.now());
+                    } else {
+                        throw new ValidationException("only events that have passed PENDING or MODERATION for new moderation method can be published");
+                    }
+                    break;
+                case REJECT_EVENT:
+                    if (!event.getState().equals(EventState.PUBLISHED) && !newModerationMethod) {
+                        event.setState(EventState.CANCELED);
+                    } else if (event.getState().equals(EventState.MODERATION)) {
+                        event.setState(EventState.CANCELED);
+                    } else {
+                        throw new ValidationException("only events that have passed not PUBLISHED or MODERATION for new moderation method can be canceled");
+                    }
+                    break;
+                default:
+                    throw new ValidationException("Invalid state action");
+            }
+        } else {
+            if (event.getState().equals(EventState.PUBLISHED)) {
+                throw new ValidationException("you can not change PUBLISHED events");
+            }
+        }
+
+    }
+
+    private void updateEventForAdmin(Event event, EventUpdateByAdminDto updateDto) {
+        if (updateDto.getAnnotation() != null) {
+            event.setAnnotation(updateDto.getAnnotation());
+        }
+
+        if (updateDto.getCategory() != null) {
+            Category category = categoryRepository.findById(updateDto.getCategory()).orElseThrow(() -> new NotFoundException("Category with id=" + updateDto.getCategory() + " was not found"));
+            event.setCategory(category);
+        }
+
+        if (updateDto.getDescription() != null) {
+            event.setDescription(updateDto.getDescription());
+        }
+
+        if (updateDto.getLocation() != null) {
+            Optional<Location> location = locationRepository.findByLatAndLon(updateDto.getLocation().getLat(), updateDto.getLocation().getLon());
+            if (location.isEmpty()) {
+                location = Optional.of(locationRepository.save(updateDto.getLocation()));
+            }
+            event.setLocation(location.get());
+        }
+
+        if (updateDto.getPaid() != null) {
+            event.setPaid(updateDto.getPaid());
+        }
+
+        if (updateDto.getParticipantLimit() != null) {
+            event.setParticipantLimit(updateDto.getParticipantLimit());
+        }
+
+        if (updateDto.getRequestModeration() != null) {
+            event.setRequestModeration(updateDto.getRequestModeration());
+        }
+
+
+        if (updateDto.getTitle() != null) {
+            event.setTitle(updateDto.getTitle());
+        }
+    }
+
+    private Pageable getPublicSorted(EventSearchPublicRequestDto param) {
+        switch (param.getSort()) {
+            case EVENT_DATE:
+                return PageUtils.convertToPageSettings(param.getFrom(), param.getSize(), "eventDate");
+            case VIEWS:
+                return PageUtils.convertToPageSettings(param.getFrom(), param.getSize(), "views");
+            default:
+                throw new ValidationException("Invalid state action");
+        }
+    }
+
+    private BooleanExpression addSearchPublicConditions(EventSearchPublicRequestDto param) {
+        BooleanExpression resultExpression = QEvent.event.state.eq(EventState.PUBLISHED);
+
+        if (param.getText() != null) {
+            resultExpression = resultExpression.and(QEvent.event.annotation.likeIgnoreCase(param.getText()).or(QEvent.event.description.likeIgnoreCase(param.getText())));
+
+        }
+
+        if (param.getCategories() != null) {
+            resultExpression = resultExpression.and(QEvent.event.category.id.in(param.getCategories()));
+        }
+
+        if (param.getPaid() != null && param.getPaid()) {
+            resultExpression = resultExpression.and(QEvent.event.paid.isTrue());
+        } else if (param.getPaid() != null) {
+            resultExpression = resultExpression.and(QEvent.event.paid.isFalse());
+        }
+
+        if (param.getRangeStart() != null) {
+            resultExpression = resultExpression.and(QEvent.event.eventDate.after(param.getRangeStart()));
+        }
+
+        if (param.getRangeEnd() != null) {
+            resultExpression = resultExpression.and(QEvent.event.eventDate.before(param.getRangeEnd()));
+        }
+        if (param.getOnlyAvailable()) {
+            resultExpression = resultExpression.and(QEvent.event.participantLimit.ne(QEvent.event.confirmedRequests));
+        }
+        return resultExpression;
     }
 
 
